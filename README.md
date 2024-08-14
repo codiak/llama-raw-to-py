@@ -74,11 +74,12 @@ At this point you have a workable GGUF file! Now we'll want to quantize it to ru
 ```
 ./llama.cpp/llama-quantize meta-llama-3-8B-instruct.gguf meta-llama-3-8B-instruct-Q8.gguf Q8_0
 ```
+
 Quantizing makes a big difference, here are response times for the same number of tokens on my M2 MacBook Air:
 - Not quantized, llama_cpp: 8-9 minutes
 - Quantized, llama_cpp: 7-10 seconds
 
-Here is a good explanation from Ricardo Pascal, who made this guide possible:
+Here is a good explanation from Ricardo Pascal, who made this guide/repo possible:
 > Quantization simplifies the model by representing its internal data with smaller numbers. This makes mathematical operations easier and faster. However, this simplification can lead to a slight decrease in the model’s accuracy, such as less certainty about the next word it should output.
 
 You can test out your quantized weights using llama.cpp directly:
@@ -90,9 +91,9 @@ You can test out your quantized weights using llama.cpp directly:
 Or go ahead and use the included Python implementations:
 ```
 # Simple test
-python3 ./llama-cpp.py
+python ./llama-cpp.py
 # Interactive chat
-python3 ./llama-cpp-cli.py
+python ./llama-cpp-cli.py
 ```
 
 ### Sources
