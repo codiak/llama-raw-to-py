@@ -1,0 +1,19 @@
+# Environments
+.env
+.venv
+env/
+venv/
+
+# Large weights folders
+hf_weights/
+llama_weights/
+
+# Model files
+*.gguf
+
+# Locally built packages
+llama.cpp/
+
+# Caches
+__pycache__/
+.DS_Store
