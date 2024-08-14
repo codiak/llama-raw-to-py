@@ -4,7 +4,7 @@
 
 This repository is intended to be a quickstart for taking Llama 3.1 weights directly from Meta, and preparing them to use in Python on a Mac.
 
-## Requirements
+## 1. Requirements
 
 Set up Python env and install requirements. Highly recommend using a virtual environment:
 ```
@@ -24,32 +24,38 @@ export FORCE_CMAKE=1
 pip install llama-cpp-python --no-cache-dir
 ```
 
-- Fill the form on Meta’s website - https://llama.meta.com/llama-downloads/
-- You will promptly get a email with a URL
-- Go the repo in the email, and you will find a download.sh file.
-- Run `download.sh` and paste the link from the email.
+## 2. Downloading the Model
+
+To get the Llama 3 weights:
+- Complete the form on Meta’s website - https://llama.meta.com/llama-downloads/
+- A download link will be generated for you, and a link to a repo will be provided.
+- Clone the [provided Llama repo](https://github.com/meta-llama/llama-models/blob/main/README.md), and locate the Llama 3.1 download.sh file.
+  - Here is the direct link to the download.sh file: https://github.com/meta-llama/llama-models/blob/main/models/llama3_1/download.sh
+- You will need `wget` installed on your machine to download the weights.
+  - If you don't have `wget`, you can install it with [Homebrew](https://brew.sh/): `brew install wget`
+- Run `download.sh` and paste the generated link when prompted.
+- *Note:* The smaller model with 8 billion parameters is **16GB**! For local purposes, especially on a MacBook M1-M2, I recommend downloading the 8B weights, and the Instruct variant for usability.
 - Save the weights to a `llama_weights` folder in this repo, so it looks something like:
 ```
 llama-raw-to-py/
     ├─ llama_weights/
       │  ├─ api/
-      │  ├─ Meta-Llama-3.1-8B/
-      │  ├─ Meta-Llama-3.1-8B-Instruct/
+      │  ├─ Meta-Llama-3.1-8B-Instruct/  <-- the folder of model metadata and weights you downloaded
       │  ├─ ...
     ├─ llama-cpp.py
     ├─ llama-torch.py
     ├─ ...
 ```
 
-## Converting Weights
+## 3. Converting Weights
 
-In order to use Llama weights with llama.cpp, they need to be in GGUF format. As an intermediary step, we will convert them to HuggingFace's format, which will also make them usable in PyTorch:
+In order to use Llama weights with llama.cpp, they need to be in GGUF format. As an intermediary step, we will convert them to HuggingFace's safetensors format, which will also make them usable in PyTorch. Make sure to update this command to reflect your version of Python (`python --version`) and the version of the model you downloaded:
 
 ```
-python3 .venv/lib/python3.12/site-packages/transformers/models/llama/convert_llama_weights_to_hf.py --input_dir llama_weights/Meta-Llama-3.1-8B-Instruct/ --model_size 8B --output_dir hf_weights --llama_version 3.1 --instruct True
+python .venv/lib/python3.12/site-packages/transformers/models/llama/convert_llama_weights_to_hf.py --input_dir llama_weights/Meta-Llama-3.1-8B-Instruct/ --model_size 8B --output_dir hf_weights --llama_version 3.1 --instruct True
 ```
 
-At this point you can test running `llama-torch.py` or `llama-torch-cli.py`, and it should be functioning, albeit slow on most Macs. I recommend continuing on to quantize the weights and run the model via llama.cpp for a more efficient integration.
+At this point you can test running `llama-torch.py` or `llama-torch-cli.py`, and it should be functioning, albeit quite slow on most Macs. I recommend continuing on to quantize the weights and run the model via llama.cpp for a more efficient integration.
 
 We will use a conversion utility from llama.cpp to convert to GGUF. To simplify accessing llama.cpp scripts, build it directly in the repo:
 ```
@@ -59,12 +65,12 @@ make -C llama.cpp/
 
 Convert to GGUF:
 ```
-python3 ./llama.cpp/convert_hf_to_gguf.py hf_weights/ --outtype f32 --outfile meta-llama-3-8B-instruct.gguf
+python ./llama.cpp/convert_hf_to_gguf.py hf_weights/ --outtype f32 --outfile meta-llama-3-8B-instruct.gguf
 ```
 
-## Quantize and Run
+## 4. Quantize and Run
 
-At this point you have a workable .gguf file! Now we'll want to quantize it to run it more efficiently:
+At this point you have a workable GGUF file! Now we'll want to quantize it to run it more efficiently:
 ```
 ./llama.cpp/llama-quantize meta-llama-3-8B-instruct.gguf meta-llama-3-8B-instruct-Q8.gguf Q8_0
 ```
