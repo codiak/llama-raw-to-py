@@ -2,7 +2,7 @@
 
 ### Goal
 
-This repository is intended to be a quickstart for taking Llama 3.1 weights directly from Meta, and preparing them to use in Python on a Mac.
+This repository is intended to be a quickstart for taking Llama 4 weights directly from Meta, and preparing them to use in Python on a Mac.
 
 ## 1. Requirements
 
@@ -14,7 +14,7 @@ source .venv/bin/activate
 
 Install PyTorch dependencies:
 ```
-pip install transformers 'transformers[torch]' tiktoken blobfile sentencepiece
+pip install transformers 'transformers[torch]' tiktoken blobfile sentencepiece llama-models
 ```
 
 Install llama.cpp dependencies (note the environment variable enables using Metal to accelerate on Apple Silicon)
@@ -24,35 +24,63 @@ export FORCE_CMAKE=1
 pip install llama-cpp-python --no-cache-dir
 ```
 
+
 ## 2. Downloading the Model
 
-To get the Llama 3 weights:
-- Complete the form on Meta’s website - https://llama.meta.com/llama-downloads/
-- A download link will be generated for you, and a link to a repo will be provided.
-- Clone the [provided Llama repo](https://github.com/meta-llama/llama-models/blob/main/README.md), and locate the Llama 3.1 download.sh file.
-  - Here is the direct link to the download.sh file: https://github.com/meta-llama/llama-models/blob/main/models/llama3_1/download.sh
-- You will need `wget` installed on your machine to download the weights.
-  - If you don't have `wget`, you can install it with [Homebrew](https://brew.sh/): `brew install wget`
-- Run `download.sh` and paste the generated link when prompted.
-- *Note:* The smaller model with 8 billion parameters is **16GB**! For local purposes, especially on a MacBook M1-M2, I recommend downloading the 8B weights, and the Instruct variant for usability.
-- Save the weights to a `llama_weights` folder in this repo, so it looks something like:
+To get the Llama 4 weights:
+
+### Step 1: Request Access
+- Complete the form on Meta's website - https://www.llama.com/llama-downloads/
+- Read and accept the license agreement
+- Once approved, you'll receive a signed URL via email
+- **Important:** Download links expire after 24 hours and have usage limits. If you encounter "403: Forbidden" errors, re-request a new link from the website.
+- When copying the URL from the email, copy the URL text itself (starts with https://download.llamameta.net), not using 'Copy link address'
+
+### Step 2: List Available Models
+After installing the `llama-models` package (in step 1), you can view available models:
+```
+llama-model list
+```
+
+Or to see all versions including older releases:
+```
+llama-model list --show-all
+```
+
+### Step 3: Download the Model
+Run the download command and provide your signed URL when prompted:
+```
+llama-model download --source meta --model-id Llama4-Scout-17B-16E-Instruct
+```
+
+Available Llama 4 models:
+- **Llama4-Scout-17B-16E** - 17B active parameters (109B total), 10M token context window
+- **Llama4-Maverick-17B-128E** - 17B active parameters (400B total), 1M token context window
+
+Both models are available in Base and Instruct variants. For local purposes, especially on a MacBook M1-M2, use the Scout model with Instruct variant for usability.
+
+**Note:** Llama 4 models require significant resources - at least 4 GPUs to run at full (bf16) precision. Quantization is highly recommended for Mac usage.
+
+### Step 4: Verify Download (Optional)
+Verify the integrity of downloaded files:
+```
+llama-model verify-download
+```
+
+The weights will be saved to your llama-models cache directory. The typical structure looks like:
 ```
 llama-raw-to-py/
-    ├─ llama_weights/
-      │  ├─ api/
-      │  ├─ Meta-Llama-3.1-8B-Instruct/  <-- the folder of model metadata and weights you downloaded
-      │  ├─ ...
+    ├─ ~/.llama/checkpoints/Llama4-Scout-17B-16E-Instruct/  <-- the folder of model metadata and weights
     ├─ llama-cpp.py
     ├─ llama-torch.py
     ├─ ...
 ```
-
 ## 3. Converting Weights
 
-In order to use Llama weights with llama.cpp, they need to be in GGUF format. As an intermediary step, we will convert them to HuggingFace's safetensors format, which will also make them usable in PyTorch. Make sure to update this command to reflect your version of Python (`python --version`) and the version of the model you downloaded:
+In order to use Llama weights with llama.cpp, they need to be in GGUF format. As an intermediary step, we will convert them to HuggingFace's safetensors format, which will also make them usable in PyTorch. Make sure to update this command to reflect your version of Python (`python --version`) and the path to your downloaded model:
 
 ```
-python .venv/lib/python3.12/site-packages/transformers/models/llama/convert_llama_weights_to_hf.py --input_dir llama_weights/Meta-Llama-3.1-8B-Instruct/ --model_size 8B --output_dir hf_weights --llama_version 3.1 --instruct True
+python .venv/lib/python3.12/site-packages/transformers/models/llama/convert_llama_weights_to_hf.py --input_dir ~/.llama/checkpoints/Llama4-Scout-17B-16E-Instruct/ --model_size 17B --output_dir hf_weights --llama_version 4 --instruct True
 ```
 
 At this point you can test running `llama-torch.py` or `llama-torch-cli.py`, and it should be functioning, albeit quite slow on most Macs. I recommend continuing on to quantize the weights and run the model via llama.cpp for a more efficient integration.
@@ -65,14 +93,14 @@ make -C llama.cpp/
 
 Convert to GGUF:
 ```
-python ./llama.cpp/convert_hf_to_gguf.py hf_weights/ --outtype f32 --outfile meta-llama-3-8B-instruct.gguf
+python ./llama.cpp/convert_hf_to_gguf.py hf_weights/ --outtype f32 --outfile llama-4-scout-17B-instruct.gguf
 ```
 
 ## 4. Quantize and Run
 
 At this point you have a workable GGUF file! Now we'll want to quantize it to run it more efficiently:
 ```
-./llama.cpp/llama-quantize meta-llama-3-8B-instruct.gguf meta-llama-3-8B-instruct-Q8.gguf Q8_0
+./llama.cpp/llama-quantize llama-4-scout-17B-instruct.gguf llama-4-scout-17B-instruct-Q8.gguf Q8_0
 ```
 
 Quantizing makes a big difference, here are response times for the same number of tokens on my M2 MacBook Air:
@@ -85,7 +113,7 @@ Here is a good explanation from Ricardo Pascal, who made this guide/repo possibl
 You can test out your quantized weights using llama.cpp directly:
 ```
 # Test run via CLI / interactive mode
-./llama.cpp/llama-cli -m meta-llama-3-8B-instruct-Q8.gguf -n 512 --n-gpu-layers 0 --repeat_penalty 1.0 --color -i -r "User:" -f llama.cpp/prompts/chat-with-bob.txt
+./llama.cpp/llama-cli -m llama-4-scout-17B-instruct-Q8.gguf -n 512 --n-gpu-layers 0 --repeat_penalty 1.0 --color -i -r "User:" -f llama.cpp/prompts/chat-with-bob.txt
 ```
 
 Or go ahead and use the included Python implementations:
@@ -98,7 +126,9 @@ python ./llama-cpp-cli.py
 
 ### Sources
 
-- Inspiration for this repo https://github.com/ggerganov/llama.cpp/issues/8808
-- Downloading weights https://discuss.huggingface.co/t/how-to-use-gated-models/53234/8
-- Quantizing and running with llama.cpp https://voorloopnul.com/blog/quantize-and-run-the-original-llama3-8b-with-llama-cpp/
-- PyTorch MPS backend out of memory fix https://pnote.eu/notes/pytorch-mac-setup/
+- Official Meta Llama download page: https://www.llama.com/llama-downloads/
+- Meta Llama models repository: https://github.com/meta-llama/llama-models
+- Meta Llama 4 announcement: https://ai.meta.com/blog/llama-4-multimodal-intelligence/
+- Inspiration for this repo: https://github.com/ggerganov/llama.cpp/issues/8808
+- Quantizing and running with llama.cpp: https://voorloopnul.com/blog/quantize-and-run-the-original-llama3-8b-with-llama-cpp/
+- PyTorch MPS backend out of memory fix: https://pnote.eu/notes/pytorch-mac-setup/
